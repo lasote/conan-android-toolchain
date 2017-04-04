@@ -10,12 +10,23 @@ class AndroidtoolchainConan(ConanFile):
     license = "GPL/APACHE2"
     url = ""
     settings = "os", "arch", "compiler"
-    options = {"use_system_python": [True, False]}
-    default_options = "use_system_python=True"
+    options = {"use_system_python": [True, False], "ndk_path": "ANY"}
+    default_options = "use_system_python=True", "ndk_path=False"
     requires = "android-ndk/%s@lasote/testing" % version
     description = "Recipe for building an Android toolchain for cross compile Android apps from Windows/Linux/OSX"
 
+    @property
+    def ndk_path(self):
+        return os.path.expanduser(os.path.join(str(self.options.ndk_path), "build", "tools"))
+
     def configure(self):
+
+        if self.options.ndk_path:
+            if os.path.exists(self.ndk_path):
+                del self.requires["android-ndk"]
+            else:
+                raise Exception("Invalid specified path to Android NDK: %s" % self.options.ndk_path)
+
         if self.settings.os != "Android":
             raise Exception("Only os Android supported")
         if str(self.settings.compiler) not in ("gcc", "clang"):
@@ -27,6 +38,18 @@ class AndroidtoolchainConan(ConanFile):
 
     @property
     def arch_id_str(self):
+
+        return {"mips": "mipsel",
+                "mips64": "mips64el",
+                "armv6": "arm",
+                "armv7": "arm",
+                "armv7hf": "arm",
+                "armv8": "aarch64",
+                "mips64": "mips64"}.get(str(self.info.settings.arch),
+                                        str(self.info.settings.arch))
+
+    @property
+    def arch_id_str_compiler(self):
 
         return {"x86": "i686",
                 "armv6": "arm",
@@ -46,9 +69,10 @@ class AndroidtoolchainConan(ConanFile):
         toolchain = "%s-linux-%s-%s%s" % (self.arch_id_str, self.android_id_str, compiler_str, self.settings.compiler.version)
         # Command available in android-ndk package
         # --stl => gnustl, libc++, stlport
+        pre_path = self.ndk_path if self.options.ndk_path else ""
         stl = {"libstdc++": "gnustl", "libstdc++11": "gnustl", "libc++": "libc++"}.get(str(self.settings.compiler.libcxx))
-        command = "make-standalone-toolchain.sh --toolchain=%s --platform=android-%s " \
-                  "--install-dir=%s --stl=%s" % (toolchain, self.settings.os.api_level, self.package_folder, stl)
+        command = "%s/make-standalone-toolchain.sh --toolchain=%s --platform=android-%s " \
+                  "--install-dir=%s --stl=%s" % (self.ndk_path, toolchain, self.settings.os.api_level, self.package_folder, stl)
         self.output.warn(command)
         # self.run("make-standalone-toolchain.sh --help")
         self.run(command)
@@ -61,7 +85,7 @@ class AndroidtoolchainConan(ConanFile):
 
     def package_info(self):
         host_os = platform.system().lower()
-        prename = "%s-%s-%s-" % (self.arch_id_str, host_os, self.android_id_str)
+        prename = "%s-%s-%s-" % (self.arch_id_str_compiler, host_os, self.android_id_str)
         if self.settings.compiler == "gcc":
             cc_compiler = prename + "gcc"
             cxx_compiler = prename + "g++"
@@ -76,7 +100,7 @@ class AndroidtoolchainConan(ConanFile):
         self.env_info.CONAN_CMAKE_FIND_ROOT_PATH = sysroot
         self.env_info.PATH.extend([os.path.join(self.package_folder, onedir) for onedir in self.cpp_info.bindirs])
 
-        arch = {"armv8": "armv8-a", "armv7": "armv7-a"}.get(str(self.settings.arch), self.settings.arch)
+        arch = {"armv8": "armv8-a", "armv7": "armv7-a", "x86": "i686"}.get(str(self.settings.arch), self.settings.arch)
 
         # valid arguments to '-march=' are: armv2 armv2a armv3 armv3m armv4 armv4t armv5 armv5e armv5t armv5te
         # armv6 armv6-m armv6j armv6k armv6s-m armv6t2 armv6z armv6zk armv7 armv7-a armv7-m armv7-r armv7e-m armv7ve
@@ -85,13 +109,13 @@ class AndroidtoolchainConan(ConanFile):
         arch_flag = "-march=%s" % arch if ("arm" in str(arch)) else ""
 
         # Common flags to C, CXX and LINKER
-        flags = ["-fPIE"]
+        flags = ["-fPIC"]
         if self.settings.compiler == "clang":
             flags.append("--gcc-toolchain=%s" % self.package_folder)
             flags.append("-target %s-linux-android" % arch)
             flags.append("-D_GLIBCXX_USE_CXX11_ABI=0")
         else:
-            flags.append("-pie")
+            flags.append("-pic")
 
         if self.settings.arch == "armv7":
             flags.append("-mfloat-abi=softfp -mfpu=vfpv3-d16")

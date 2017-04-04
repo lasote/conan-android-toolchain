@@ -69,13 +69,13 @@ class AndroidtoolchainConan(ConanFile):
         toolchain = "%s-linux-%s-%s%s" % (self.arch_id_str, self.android_id_str, compiler_str, self.settings.compiler.version)
         # Command available in android-ndk package
         # --stl => gnustl, libc++, stlport
-        pre_path = self.ndk_path if self.options.ndk_path else ""
+        pre_path = (self.ndk_path + "/") if self.options.ndk_path else ""
         stl = {"libstdc++": "gnustl", "libstdc++11": "gnustl", "libc++": "libc++"}.get(str(self.settings.compiler.libcxx))
-        command = "%s/make-standalone-toolchain.sh --toolchain=%s --platform=android-%s " \
-                  "--install-dir=%s --stl=%s" % (self.ndk_path, toolchain, self.settings.os.api_level, self.package_folder, stl)
+        command = "%smake-standalone-toolchain.sh --toolchain=%s --platform=android-%s " \
+                  "--install-dir=%s --stl=%s" % (pre_path, toolchain, self.settings.os.api_level, self.package_folder, stl)
         self.output.warn(command)
         # self.run("make-standalone-toolchain.sh --help")
-        self.run(command)
+        self.run(command) if platform.system != "Windows" else tools.run_in_bash(command)
         if self.options.use_system_python:
             if os.path.exists(os.path.join(self.package_folder, "bin", "python")):
                 os.unlink(os.path.join(self.package_folder, "bin", "python"))

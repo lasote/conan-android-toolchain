@@ -1,5 +1,6 @@
 import os
 import platform
+import shutil
 
 from conans import ConanFile, CMake, tools
 
@@ -80,6 +81,14 @@ class AndroidtoolchainConan(ConanFile):
             if os.path.exists(os.path.join(self.package_folder, "bin", "python")):
                 os.unlink(os.path.join(self.package_folder, "bin", "python"))
 
+        if platform.system() == "Windows":  # Create clang.exe to make CMake happy
+            dest_cc_compiler = os.path.join(self.package_folder, "bin", "clang.exe")
+            dest_cxx_compiler = os.path.join(self.package_folder, "bin", "clang++.exe")
+            src_cc_compiler = os.path.join(self.package_folder, "bin", "clang38.exe")
+            src_cxx_compiler = os.path.join(self.package_folder, "bin", "clang38++.exe")
+            shutil.copy(src_cc_compiler, dest_cc_compiler)
+            shutil.copy(src_cxx_compiler, dest_cxx_compiler)
+
         if not os.path.exists(os.path.join(self.package_folder, "bin")):
             raise Exception("Invalid toolchain, try a higher api_level or different architecture: %s-%s" % (self.settings.arch, self.settings.os.api_level))
 
@@ -93,9 +102,10 @@ class AndroidtoolchainConan(ConanFile):
             cc_compiler = "clang"
             cxx_compiler = "clang++"
 
+
         sysroot = os.path.join(self.package_folder, "sysroot")
-        self.env_info.CC = cc_compiler
-        self.env_info.CXX = cxx_compiler
+        self.env_info.CC =  os.path.join(self.package_folder, "bin", cc_compiler)
+        self.env_info.CXX = os.path.join(self.package_folder, "bin", cxx_compiler)
 
         self.env_info.CONAN_CMAKE_FIND_ROOT_PATH = sysroot
         self.env_info.PATH.extend([os.path.join(self.package_folder, onedir) for onedir in self.cpp_info.bindirs])
@@ -111,7 +121,7 @@ class AndroidtoolchainConan(ConanFile):
         # Common flags to C, CXX and LINKER
         flags = ["-fPIC"]
         if self.settings.compiler == "clang":
-            flags.append("--gcc-toolchain=%s" % self.package_folder)
+            flags.append("--gcc-toolchain=%s" % tools.unix_path(self.package_folder))
             flags.append("-target %s-linux-android" % arch)
             flags.append("-D_GLIBCXX_USE_CXX11_ABI=0")
         else:
@@ -125,4 +135,6 @@ class AndroidtoolchainConan(ConanFile):
         self.cpp_info.sharedlinkflags.extend(flags)
         self.cpp_info.exelinkflags.extend(flags)
         self.cpp_info.sysroot = sysroot
+        if platform.system() == "Windows":
+            self.cpp_info.includedirs.append(os.path.join(sysroot, "usr", "include"))
 

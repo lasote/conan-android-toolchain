@@ -26,7 +26,7 @@ class AndroidtoolchainConan(ConanFile):
             if os.path.exists(self.ndk_path):
                 del self.requires["android-ndk"]
             else:
-                raise Exception("Invalid specified path to Android NDK: %s" % self.options.ndk_path)
+                raise Exception("Invalid specified path to Android NDK: %s" % self.ndk_path)
 
         if self.settings.os != "Android":
             raise Exception("Only os Android supported")

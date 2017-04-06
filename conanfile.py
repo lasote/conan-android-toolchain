@@ -93,8 +93,7 @@ class AndroidtoolchainConan(ConanFile):
             raise Exception("Invalid toolchain, try a higher api_level or different architecture: %s-%s" % (self.settings.arch, self.settings.os.api_level))
 
     def package_info(self):
-        host_os = platform.system().lower()
-        prename = "%s-%s-%s-" % (self.arch_id_str_compiler, host_os, self.android_id_str)
+        prename = "%s-linux-%s-" % (self.arch_id_str_compiler, self.android_id_str)
         if self.settings.compiler == "gcc":
             cc_compiler = prename + "gcc"
             cxx_compiler = prename + "g++"
@@ -137,4 +136,8 @@ class AndroidtoolchainConan(ConanFile):
         self.cpp_info.sysroot = sysroot
         if platform.system() == "Windows":
             self.cpp_info.includedirs.append(os.path.join(sysroot, "usr", "include"))
-
+        if platform.system() == "Darwin":
+            self.env_info.CHOST = prename
+            self.env_info.AR = "%sar" % prename
+            self.env_info.RANLIB = "%sranlib" % prename
+            self.env_info.ARFLAGS = "rcs"

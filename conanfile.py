@@ -2,7 +2,7 @@ import os
 import platform
 import shutil
 
-from conans import ConanFile, CMake, tools
+from conans import ConanFile, tools
 
 
 class AndroidtoolchainConan(ConanFile):
@@ -41,13 +41,12 @@ class AndroidtoolchainConan(ConanFile):
     def arch_id_str(self):
 
         return {"mips": "mipsel",
-                "mips64": "mips64el",
+                "mips64": "mips64",
                 "armv6": "arm",
                 "armv7": "arm",
                 "armv7hf": "arm",
-                "armv8": "aarch64",
-                "mips64": "mips64"}.get(str(self.info.settings.arch),
-                                        str(self.info.settings.arch))
+                "armv8": "aarch64"}.get(str(self.settings.arch),
+                                        str(self.settings.arch))
 
     @property
     def arch_id_str_compiler(self):
@@ -57,12 +56,12 @@ class AndroidtoolchainConan(ConanFile):
                 "armv7": "arm",
                 "armv7hf": "arm",
                 "armv8": "aarch64",
-                "mips64": "mips64"}.get(str(self.info.settings.arch),
-                                        str(self.info.settings.arch))
+                "mips64": "mips64"}.get(str(self.settings.arch),
+                                        str(self.settings.arch))
 
     @property
     def android_id_str(self):
-        return "androideabi" if str(self.info.settings.arch) in ["armv6", "armv7"] else "android"
+        return "androideabi" if str(self.settings.arch) in ["armv6", "armv7"] else "android"
 
     def build(self):
 
@@ -76,7 +75,11 @@ class AndroidtoolchainConan(ConanFile):
                   "--install-dir=%s --stl=%s" % (pre_path, toolchain, self.settings.os.api_level, self.package_folder, stl)
         self.output.warn(command)
         # self.run("make-standalone-toolchain.sh --help")
-        self.run(command) if platform.system != "Windows" else tools.run_in_bash(command)
+        if platform.system != "Windows":
+            self.run(command)
+        else:
+            tools.run_in_windows_bash(self, command)
+
         if self.options.use_system_python:
             if os.path.exists(os.path.join(self.package_folder, "bin", "python")):
                 os.unlink(os.path.join(self.package_folder, "bin", "python"))

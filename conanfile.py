@@ -9,7 +9,7 @@ class AndroidtoolchainConan(ConanFile):
     name = "android-toolchain"
     version = "r13b"
     license = "GPL/APACHE2"
-    url = ""
+    url = "https://github.com/lasote/conan-android-toolchain"
     settings = "os", "arch", "compiler"
     options = {"use_system_python": [True, False], "ndk_path": "ANY"}
     default_options = "use_system_python=True", "ndk_path=False"

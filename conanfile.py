@@ -104,7 +104,6 @@ class AndroidtoolchainConan(ConanFile):
             cc_compiler = "clang"
             cxx_compiler = "clang++"
 
-
         sysroot = os.path.join(self.package_folder, "sysroot")
         self.env_info.CC =  os.path.join(self.package_folder, "bin", cc_compiler)
         self.env_info.CXX = os.path.join(self.package_folder, "bin", cxx_compiler)
